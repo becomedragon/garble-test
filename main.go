@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"reflect"
 	"sync"
 	"time"
 
@@ -169,6 +170,64 @@ func obfuscationDemo() {
 	}
 }
 
+// reflectDemo exercises reflect.TypeOf, reflect.ValueOf, FieldByName, and
+// MethodByName using models.User and models.Task.
+// Before garble: output shows real type/method/field names.
+// After garble: names become short random identifiers, so MethodByName
+// lookups by the original name return an invalid Value.
+func reflectDemo() {
+	u := models.NewUser(42, "Alice", "alice@example.com")
+	u.AddRole("admin")
+
+	rv := reflect.ValueOf(u)
+	rt := reflect.TypeOf(u)
+
+	fmt.Printf("  reflect.TypeOf : %v\n", rt)
+	fmt.Printf("  reflect.ValueOf: %v\n", rv)
+
+	// FieldByName — after garble these exported field names are renamed and
+	// FieldByName returns the zero Value (IsValid() == false).
+	for _, field := range []string{"ID", "Name", "Email"} {
+		f := rv.Elem().FieldByName(field)
+		if f.IsValid() {
+			fmt.Printf("  FieldByName(%q) = %v\n", field, f)
+		} else {
+			fmt.Printf("  FieldByName(%q): not found (garbled?)\n", field)
+		}
+	}
+
+	// MethodByName — after garble "String" and "HasRole" are renamed, so
+	// the Call below will be skipped and the fallback message printed.
+	for _, call := range []struct {
+		method string
+		args   []reflect.Value
+	}{
+		{"String", nil},
+		{"HasRole", []reflect.Value{reflect.ValueOf("admin")}},
+	} {
+		m := rv.MethodByName(call.method)
+		if m.IsValid() {
+			result := m.Call(call.args)
+			fmt.Printf("  MethodByName(%q).Call() = %v\n", call.method, result[0])
+		} else {
+			fmt.Printf("  MethodByName(%q): not found (garbled?)\n", call.method)
+		}
+	}
+
+	// Type name via reflect - garble replaces the package-qualified name.
+	t := models.NewTask(1, "deploy", 2)
+	rt2 := reflect.TypeOf(t).Elem()
+	fmt.Printf("  Task type name : %s\n", rt2.Name())
+	for _, fname := range []string{"ID", "Title", "Priority"} {
+		sf, ok := rt2.FieldByName(fname)
+		if ok {
+			fmt.Printf("  Task field %q tag=%q\n", sf.Name, sf.Tag)
+		} else {
+			fmt.Printf("  Task field %q: not found (garbled?)\n", fname)
+		}
+	}
+}
+
 func main() {
 	rand.New(rand.NewSource(time.Now().UnixNano()))
 
@@ -209,6 +268,11 @@ func main() {
 	// ── Sub-package: worker (task pipeline) ──────────────────────────────────
 	fmt.Println("\n[worker] task pipeline")
 	runTaskPipeline()
+
+	// ── Reflection demo ──────────────────────────────────────────────────────
+	// Run before and after `garble build` to compare visible names.
+	fmt.Println("\n[reflect] reflection calls demo")
+	reflectDemo()
 
 	// ── net/http (kept from original) ────────────────────────────────────────
 	// These calls exercise the http symbol targets just as the original did.

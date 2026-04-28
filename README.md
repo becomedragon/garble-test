@@ -48,3 +48,28 @@ garble-test/
 | **String constants** — literals, format strings, Base64 encode/decode, XOR obfuscation | `crypto/crypto.go`, `main.go` |
 | **Package paths** — multiple sub-packages under one module | `models/`, `config/`, `crypto/`, `worker/` |
 | **CFG complexity** — deep if/else, switch, for, goroutines, channels, select | `main.go`, `worker/worker.go` |
+| **Reflection** — `TypeOf`, `ValueOf`, `FieldByName`, `MethodByName` | `main.go` (`reflectDemo`) |
+
+## Comparing reflection output before vs after garble
+
+The `reflectDemo` function in `main.go` is specifically designed to highlight what garble changes in the reflection output.
+
+```sh
+# 1. Build and run WITHOUT obfuscation — real names visible
+go build -o garble-test-plain .
+./garble-test-plain 2>&1 | grep -A 20 '\[reflect\]'
+
+# 2. Build and run WITH garble obfuscation — names replaced
+garble build -o garble-test-obfuscated .
+./garble-test-obfuscated 2>&1 | grep -A 20 '\[reflect\]'
+```
+
+**Expected differences in the `[reflect]` section:**
+
+| Output line | Plain binary | Garbled binary |
+|---|---|---|
+| `reflect.TypeOf` | `*models.User` | short random name |
+| `FieldByName("Name")` | `Alice` | `not found (garbled?)` |
+| `MethodByName("String").Call()` | user string | `not found (garbled?)` |
+| `Task type name` | `Task` | random identifier |
+| `Task field "Title"` | `Title` | `not found (garbled?)` |
