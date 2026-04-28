@@ -1,6 +1,6 @@
 # garble-test
 
-A simple Go project to test [Garble](https://github.com/burrowers/garble)'s obfuscation capability.
+A Go project to test [Garble](https://github.com/burrowers/garble)'s obfuscation capability across a wide range of language features.
 
 ## Prerequisites
 
@@ -25,9 +25,26 @@ garble build .
 ./garble-test
 ```
 
-## What's included
+## Project layout
 
-- Global variable (`globalVar`)
-- Global function (`globalFunc`)
-- Usage of `net/http` package (both server and client side)
-- A mix of funcs, methods, fields, and string literals — good targets for Garble obfuscation
+```
+garble-test/
+├── main.go          # Entry point — complex control flow, goroutines, fan-out/fan-in
+├── models/          # Structs, interfaces, exported & unexported symbols
+│   └── models.go
+├── crypto/          # Base64 codec, salted codec, string obfuscation helpers
+│   └── crypto.go
+├── config/          # Thread-safe config with typed accessors and merge
+│   └── config.go
+└── worker/          # Goroutine pool, job/result channels, select statements
+    └── worker.go
+```
+
+## What's covered for Garble obfuscation
+
+| Garble target | Where |
+|---|---|
+| **Symbol renaming** — exported & unexported funcs, types, fields | `models`, `config`, `crypto`, `worker`, `main` |
+| **String constants** — literals, format strings, Base64 encode/decode, XOR obfuscation | `crypto/crypto.go`, `main.go` |
+| **Package paths** — multiple sub-packages under one module | `models/`, `config/`, `crypto/`, `worker/` |
+| **CFG complexity** — deep if/else, switch, for, goroutines, channels, select | `main.go`, `worker/worker.go` |
