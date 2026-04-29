@@ -23,6 +23,27 @@ import (
 // globalVar is a package-level string literal — a target for string-constant obfuscation.
 var globalVar = "global value"
 
+// AuthService is a simple service type used to demonstrate reflection.
+type AuthService struct{}
+
+// LoginRequest holds credentials passed to authentication methods.
+type LoginRequest struct {
+	Email    string
+	Password string
+}
+
+// ValidateToken returns true when the token equals the expected sentinel value.
+func (AuthService) ValidateToken(token string) bool {
+	return token == "ok"
+}
+
+// causePanic intentionally dereferences a nil *AuthService to trigger a panic,
+// making stack-trace symbol readability observable before and after garble.
+func causePanic() {
+	var s *AuthService
+	_ = s.ValidateToken("x")
+}
+
 // appVersion is another string constant in a different variable.
 const appVersion = "1.0.0-garble"
 
@@ -279,4 +300,21 @@ func main() {
 	_ = http.Client{Transport: nil}
 
 	fmt.Println("\nDone.")
+
+	// ── AuthService reflection (explicit + robust) ────────────────────────────
+	// Store the type once and guard method access so the code stays correct
+	// even if the method set changes (e.g. after garble obfuscation).
+	fmt.Println("\n[reflect] AuthService type/method names")
+	t := reflect.TypeOf(AuthService{})
+	fmt.Println("Type:", t.String())
+	if t.NumMethod() > 0 {
+		// Method(0) returns the first method in alphabetical order; printing
+		// it confirms the name is readable before garble obfuscates it.
+		fmt.Println("Method:", t.Method(0).Name)
+	} else {
+		fmt.Println("Method: <none>")
+	}
+
+	// ── Panic trigger (stack-trace readability) ───────────────────────────────
+	causePanic()
 }
